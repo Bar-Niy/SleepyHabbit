@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sleepy_habbit/core/models/user_profile.dart';
 import 'package:sleepy_habbit/features/home/screens/home_screen.dart';
 import 'package:sleepy_habbit/features/alarm/screens/alarm_screen.dart';
 import 'package:sleepy_habbit/features/alarm/screens/alarm_edit_screen.dart';
@@ -11,15 +12,33 @@ import 'package:sleepy_habbit/features/insights/screens/insights_screen.dart';
 import 'package:sleepy_habbit/features/settings/screens/settings_screen.dart';
 import 'package:sleepy_habbit/features/legal/screens/terms_screen.dart';
 import 'package:sleepy_habbit/features/legal/screens/privacy_screen.dart';
+import 'package:sleepy_habbit/features/onboarding/screens/onboarding_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
+    redirect: (context, state) async {
+      final profile = await UserProfile.load();
+      final isOnboarding = state.matchedLocation == '/onboarding';
+
+      if (!profile.completedOnboarding && !isOnboarding) {
+        return '/onboarding';
+      }
+      if (profile.completedOnboarding && isOnboarding) {
+        return '/';
+      }
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/',
         name: 'home',
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        name: 'onboarding',
+        builder: (context, state) => const OnboardingScreen(),
       ),
       GoRoute(
         path: '/alarms',

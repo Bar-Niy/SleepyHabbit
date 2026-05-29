@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sleepy_habbit/core/services/llm_service.dart';
 import 'package:sleepy_habbit/core/services/voice_service.dart';
+import 'package:sleepy_habbit/core/services/extraction_service.dart';
 import 'package:sleepy_habbit/core/services/database_service.dart';
 import 'package:sleepy_habbit/core/database/tables.dart';
 
@@ -50,11 +52,13 @@ class InterviewData {
 class InterviewNotifier extends Notifier<InterviewData> {
   late final LlmService _llm;
   late final VoiceService _voice;
+  late final ExtractionService _extraction;
 
   @override
   InterviewData build() {
     _llm = ref.read(llmServiceProvider);
     _voice = ref.read(voiceServiceProvider);
+    _extraction = ref.read(extractionServiceProvider);
     return InterviewData();
   }
 
@@ -212,14 +216,23 @@ class InterviewNotifier extends Notifier<InterviewData> {
       {'role': 'user', 'content': fullTranscription},
     ]);
 
-    // Store in database
+    // Extract structured data from the conversation
+    final extracted = await _extraction.extractSleepData(fullTranscription);
+
+    // Store in database with extracted structured data
     final db = DatabaseService.instance.database;
     await db.sleepEntryDao.insertEntry(
       SleepEntriesCompanion(
         date: Value(DateTime.now()),
         wakeTime: Value(DateTime.now()),
+        qualityRating: Value(extracted.sleepQuality),
+        moodRating: Value(extracted.moodRating),
+        dreamDescription: Value(extracted.dreamRecalled == true
+            ? extracted.dreamThemes.join(', ')
+            : null),
         transcription: Value(fullTranscription),
         llmSummary: Value(summary),
+        tags: Value(jsonEncode(extracted.toJson())),
       ),
     );
 

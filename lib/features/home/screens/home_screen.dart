@@ -2,12 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:sleepy_habbit/core/services/nudge_service.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  List<dynamic> _nudges = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNudges();
+  }
+
+  Future<void> _loadNudges() async {
+    try {
+      final nudgeService = ref.read(nudgeServiceProvider);
+      final nudges = await nudgeService.generateNudges();
+      if (mounted) setState(() => _nudges = nudges);
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final now = DateTime.now();
     final greeting = _getGreeting(now.hour);
@@ -35,7 +57,14 @@ class HomeScreen extends ConsumerWidget {
                         color: theme.colorScheme.onSurface.withOpacity(0.6),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+
+                    // Proactive nudges
+                    if (_nudges.isNotEmpty) ...[
+                      _NudgeCarousel(nudges: _nudges, theme: theme),
+                      const SizedBox(height: 16),
+                    ],
+
                     _SleepSummaryCard(theme: theme),
                     const SizedBox(height: 16),
                     _QuickActionsRow(theme: theme),
@@ -383,5 +412,113 @@ class _TimelineItem extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+
+
+class _NudgeCarousel extends StatelessWidget {
+  final List<dynamic> nudges;
+  final ThemeData theme;
+
+  const _NudgeCarousel({required this.nudges, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: nudges.length,
+        itemBuilder: (context, index) {
+          final nudge = nudges[index];
+          return _NudgeCard(nudge: nudge, theme: theme);
+        },
+      ),
+    );
+  }
+}
+
+class _NudgeCard extends StatelessWidget {
+  final dynamic nudge;
+  final ThemeData theme;
+
+  const _NudgeCard({required this.nudge, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    final nudgeType = nudge.nudgeType;
+    final icon = _iconForType(nudgeType);
+    final color = _colorForType(nudgeType);
+
+    return Container(
+      width: 280,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.15),
+            radius: 20,
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  nudge.title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  nudge.message,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _iconForType(String type) {
+    switch (type) {
+      case 'reminder': return Icons.notifications_active;
+      case 'insight': return Icons.lightbulb;
+      case 'warning': return Icons.warning_amber;
+      case 'encouragement': return Icons.celebration;
+      default: return Icons.info;
+    }
+  }
+
+  Color _colorForType(String type) {
+    switch (type) {
+      case 'reminder': return Colors.blue;
+      case 'insight': return Colors.purple;
+      case 'warning': return Colors.orange;
+      case 'encouragement': return Colors.green;
+      default: return Colors.grey;
+    }
   }
 }

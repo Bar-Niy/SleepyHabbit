@@ -8,18 +8,54 @@ import 'package:sleepy_habbit/core/database/daos/alarm_dao.dart';
 import 'package:sleepy_habbit/core/database/daos/sleep_entry_dao.dart';
 import 'package:sleepy_habbit/core/database/daos/diary_entry_dao.dart';
 import 'package:sleepy_habbit/core/database/daos/meal_entry_dao.dart';
+import 'package:sleepy_habbit/core/database/daos/nightly_features_dao.dart';
+import 'package:sleepy_habbit/core/database/daos/weekly_report_dao.dart';
+import 'package:sleepy_habbit/core/database/daos/nudge_dao.dart';
 
 part 'app_database.g.dart';
 
 @DriftDatabase(
-  tables: [Alarms, SleepEntries, DiaryEntries, MealEntries, ConversationMessages],
-  daos: [AlarmDao, SleepEntryDao, DiaryEntryDao, MealEntryDao],
+  tables: [
+    Alarms,
+    SleepEntries,
+    DiaryEntries,
+    MealEntries,
+    ConversationMessages,
+    NightlyFeatures,
+    WeeklyReports,
+    Nudges,
+  ],
+  daos: [
+    AlarmDao,
+    SleepEntryDao,
+    DiaryEntryDao,
+    MealEntryDao,
+    NightlyFeaturesDao,
+    WeeklyReportDao,
+    NudgeDao,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (Migrator m) async {
+          await m.createAll();
+        },
+        onUpgrade: (Migrator m, int from, int to) async {
+          if (from < 2) {
+            await m.createTable(nightlyFeatures);
+            await m.createTable(weeklyReports);
+            await m.createTable(nudges);
+            // Add extractedData column to MealEntries
+            await m.addColumn(mealEntries, mealEntries.extractedData);
+          }
+        },
+      );
 
   static LazyDatabase _openConnection() {
     return LazyDatabase(() async {

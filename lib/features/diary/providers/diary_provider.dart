@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sleepy_habbit/core/services/llm_service.dart';
 import 'package:sleepy_habbit/core/services/voice_service.dart';
+import 'package:sleepy_habbit/core/services/extraction_service.dart';
 import 'package:sleepy_habbit/core/services/database_service.dart';
 import 'package:sleepy_habbit/core/database/tables.dart';
 
@@ -50,12 +52,14 @@ class DiaryData {
 class DiaryNotifier extends Notifier<DiaryData> {
   late final LlmService _llm;
   late final VoiceService _voice;
+  late final ExtractionService _extraction;
   static const int _maxExchanges = 6; // 6 back-and-forth exchanges
 
   @override
   DiaryData build() {
     _llm = ref.read(llmServiceProvider);
     _voice = ref.read(voiceServiceProvider);
+    _extraction = ref.read(extractionServiceProvider);
     return DiaryData();
   }
 
@@ -171,13 +175,21 @@ class DiaryNotifier extends Notifier<DiaryData> {
       {'role': 'user', 'content': fullTranscription},
     ]);
 
-    // Store diary entry
+    // Extract structured data
+    final extracted = await _extraction.extractDiaryData(fullTranscription);
+
+    // Store diary entry with structured data
     final db = DatabaseService.instance.database;
     await db.diaryEntryDao.insertEntry(
       DiaryEntriesCompanion(
         date: Value(DateTime.now()),
         transcription: Value(fullTranscription),
         llmSummary: Value(summary),
+        mood: Value(extracted.mood),
+        stressors: Value(jsonEncode(extracted.stressors)),
+        gratitude: Value(jsonEncode(extracted.gratitudeItems)),
+        tomorrowIntentions: Value(extracted.tomorrowIntentions),
+        overallDayRating: Value(extracted.overallDayRating),
       ),
     );
 

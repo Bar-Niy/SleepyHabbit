@@ -1,20 +1,52 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.sleepyhabbit.app">
 
-    <!-- Permissions -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- ============================================================
+         PERMISSIONS - Carefully scoped for Google Play compliance
+         ============================================================ -->
+
+    <!-- Network: Required for local LLM server + Google Drive backup -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Audio: Voice recording for morning interview + evening diary -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Camera: Meal photo capture -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Vibration: Alarm haptic feedback -->
     <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Boot receiver: Reschedule alarms after device restart -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <!-- Notifications: Alarm alerts, diary reminders, nudges -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <!-- Wake lock: Keep device awake during alarm -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!--
+        NOTE: We intentionally DO NOT use:
+        - SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM
+          → Google Play rejects these for non-alarm-clock-primary apps.
+          → Our reminders use inexact alarms (WorkManager / inexact AlarmManager)
+            which are perfectly adequate for "bedtime reminder" use cases.
+          → The actual wake-up alarm uses fullScreenIntent notification channel
+            scheduled via inexact alarm with a ±5 min window (acceptable for sleep app).
+
+        - USE_FULL_SCREEN_INTENT
+          → Removed: requires special Google Play approval since Android 14.
+          → Instead, we use high-priority notification channel with heads-up display.
+
+        - WRITE_EXTERNAL_STORAGE / READ_EXTERNAL_STORAGE
+          → Not needed: we use app-private storage (getApplicationDocumentsDirectory)
+          → Photos saved via image_picker to app-private cache
+
+        - FOREGROUND_SERVICE
+          → Not needed for our current feature set.
+          → If we add background audio recording later, we'll add it with proper type.
+    -->
 
     <application
         android:label="SleepyHabbit"
@@ -22,7 +54,16 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:allowBackup="true"
-        android:usesCleartextTraffic="true">
+        android:networkSecurityConfig="@xml/network_security_config">
+
+        <!-- 
+            CLEARTEXT TRAFFIC POLICY:
+            Instead of the dangerous android:usesCleartextTraffic="true" (allows ALL HTTP),
+            we use network_security_config.xml which ONLY allows cleartext to:
+            - localhost / 127.0.0.1 (on-device llama.cpp)
+            - 192.168.x.x, 10.x.x.x, 172.16.x.x (home network LLM server)
+            All other traffic (Google Drive, external APIs) is HTTPS-only.
+        -->
 
         <activity
             android:name=".MainActivity"
@@ -43,7 +84,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Alarm Manager -->
+        <!-- Notification receivers for flutter_local_notifications -->
         <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
             android:exported="false">

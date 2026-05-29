@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network Security Configuration for SleepyHabbit.
+
+    WHY THIS EXISTS:
+    Users connect to local LLM servers (llama.cpp, Ollama) running on their
+    home network via plain HTTP (e.g., http://192.168.1.100:8080).
+    Android 9+ blocks cleartext HTTP by default.
+
+    OUR APPROACH:
+    We allow cleartext traffic globally but ONLY because our app connects to
+    user-configured local servers with IP addresses. Android's domain-config
+    doesn't support IP address ranges/wildcards, so we must use base-config.
+
+    SECURITY MITIGATIONS:
+    - The app only makes HTTP requests to the user-configured LLM URL
+    - Google Drive API uses googleapis.com (always HTTPS via the SDK)
+    - Google Sign-In uses Google's SDK (always HTTPS)
+    - No other outbound HTTP calls exist in the app
+    - Users are informed in settings that local servers use unencrypted connections
+
+    ALTERNATIVE: If we wanted to be stricter, we could add a setting that
+    lets users toggle "allow cleartext" and validate URLs at runtime.
+    For V1, since the ONLY cleartext target is a user-entered local server,
+    this is acceptable.
+-->
+<network-security-config>
+
+    <!--
+        Allow cleartext for user-configured local LLM servers.
+        This is required because:
+        1. Local LLM servers (llama.cpp, Ollama) don't have TLS certs
+        2. Android domain-config can't match IP address patterns (192.168.x.x)
+        3. The app validates at the code level that only the user-configured URL is called
+
+        All Google API traffic (Drive, Sign-In) goes through their official SDKs
+        which enforce HTTPS regardless of this setting.
+    -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+</network-security-config>

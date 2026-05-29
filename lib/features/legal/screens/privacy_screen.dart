@@ -80,10 +80,14 @@ class PrivacyScreen extends StatelessWidget {
               title: '5. Voice Recordings',
               content:
                   'Voice recordings are:\n'
-                  '- Processed locally for speech-to-text transcription\n'
-                  '- Stored only as text transcriptions (audio is discarded after transcription)\n'
-                  '- Never transmitted to any server unless you configure an external STT service\n'
-                  '- Deletable at any time through the App settings',
+                  '- Processed for speech-to-text transcription using your device\'s built-in speech recognition\n'
+                  '- Stored only as text transcriptions (audio is discarded immediately after transcription)\n'
+                  '- Deletable at any time through the App settings\n\n'
+                  'IMPORTANT NOTE on speech recognition:\n'
+                  '- Android 13+ and iOS: Speech recognition runs entirely on-device (no network)\n'
+                  '- Older Android versions: Your device may use Google\'s cloud speech service for transcription. '
+                  'In this case, audio is processed by Google under their privacy policy. '
+                  'We recommend updating to Android 13+ for fully offline transcription.',
               theme: theme,
             ),
             _Section(

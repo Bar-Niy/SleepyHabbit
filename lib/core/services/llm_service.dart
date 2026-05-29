@@ -6,6 +6,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// LLM Service that supports both local (llama.cpp server) and remote API backends.
 /// Default: local llama.cpp running on device via companion process.
 /// Fallback: Ollama, Groq, or OpenAI-compatible API.
+///
+/// NETWORK SECURITY NOTE:
+/// This service is the ONLY component that makes cleartext HTTP requests.
+/// - Default URL (localhost:8080) stays on-device — no network at all.
+/// - Local network URLs (192.168.x.x) use cleartext HTTP because home
+///   LLM servers don't have TLS certificates.
+/// - Public URLs (Groq, OpenAI, etc.) should use HTTPS — the user is
+///   responsible for entering https:// URLs for external services.
+/// - Google Drive backup uses the Google SDK which enforces HTTPS.
+///
+/// The network_security_config.xml allows cleartext specifically for this use case.
 class LlmService {
   final Dio _dio;
   String _baseUrl;
